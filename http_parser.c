@@ -631,6 +631,7 @@ parse_url_char(enum state s, const char ch)
   return s_dead;
 }
 
+#define PERF
 size_t http_parser_execute (http_parser *parser,
                             const http_parser_settings *settings,
                             const char *data,
@@ -775,8 +776,21 @@ reexecute:
       }
 
       case s_res_H:
-        STRICT_CHECK(ch != 'T');
-        UPDATE_STATE(s_res_HT);
+#ifdef PERF
+        if(((size_t)(p -data) + 6 < len) && (UNLIKELY(IS_NUM(p[4]))) && (UNLIKELY(p[5] == '.')) && (UNLIKELY(IS_NUM(p[6]))))
+        {
+            parser->http_major = p[4] - '0';
+            parser->http_minor = p[6] - '0';
+            p+=6;
+            COUNT_HEADER_SIZE(6);
+            UPDATE_STATE(s_res_http_end);
+        }
+        else
+#endif
+        {
+            STRICT_CHECK(ch != 'T');
+            UPDATE_STATE(s_res_HT);
+        }
         break;
 
       case s_res_HT:
@@ -1096,8 +1110,20 @@ reexecute:
         break;
 
       case s_req_http_H:
-        STRICT_CHECK(ch != 'T');
-        UPDATE_STATE(s_req_http_HT);
+#ifdef PERF
+        if(((size_t)(p-data) + 6 < len) && (UNLIKELY(IS_NUM(p[4]))) && (UNLIKELY(p[5] == '.')) && (UNLIKELY(IS_NUM(p[6]))))
+        {
+            parser->http_major = p[4] - '0';
+            parser->http_minor = p[6] - '0';
+            p+=6;
+            COUNT_HEADER_SIZE(6);
+            UPDATE_STATE(s_req_http_end);
+        }else
+#endif
+        {
+            STRICT_CHECK(ch != 'T');
+            UPDATE_STATE(s_req_http_HT);
+        }
         break;
 
       case s_req_http_HT:
